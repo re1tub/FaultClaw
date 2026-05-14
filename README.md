@@ -1,5 +1,3 @@
-# FaultClaw
-AI-Driven Autonomous Design Verification
 # FaultClaw ⚡
 ### Adversarial Hardware Verification Agent
 
