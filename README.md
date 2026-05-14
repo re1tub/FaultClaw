@@ -184,17 +184,6 @@ python main.py --design designs/adder_4bit.v --breakdown  # Enable Breakdown Mod
 
 ---
 
-## Team
-
-| Role | Responsibility |
-|---|---|
-| Person 1 | Agent 2 — adversarial test generation, Nemotron prompting, Breakdown Mode |
-| Person 2 | Agent 3 — golden reference model, verification engine, coverage metrics |
-| Person 3 | Agent 1 + OpenClaw orchestration — spec parsing, agent coordination, memory |
-| Person 4 | NemoClaw sandboxing, Telegram bot, demo polish, documentation |
-
----
-
 ## Future Scope
 
 FaultClaw is scoped to a 4-bit adder for the hackathon. The architecture is designed to scale:
