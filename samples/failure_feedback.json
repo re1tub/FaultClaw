@@ -1,0 +1,23 @@
+{
+  "failure_type": "mismatch",
+  "failed_inputs": {
+    "a": 15,
+    "b": 1
+  },
+  "expected": {
+    "sum": 16
+  },
+  "actual": {
+    "sum": 0
+  },
+  "focus_region": {
+    "a_range": [
+      13,
+      15
+    ],
+    "b_range": [
+      0,
+      3
+    ]
+  }
+}
