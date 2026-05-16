@@ -11,9 +11,6 @@ buggy   — carry-out hardwired to 0: sum[4:0] = (a + b) & 0x0F
 """
 
 from __future__ import annotations
-from agents.testbench_generator import generate_testbench
-from agents.rtl_runner import run_rtl_sim
-
 
 import argparse
 import json
@@ -39,50 +36,6 @@ def _run_dut(inputs: dict[str, int], buggy: bool) -> dict[str, int]:
     a = inputs["a"]
     b = inputs["b"]
     return _buggy_adder(a, b) if buggy else _golden_adder(a, b)
-
-def _run_rtl_tests(
-    tests: list[dict[str, Any]],
-    dut_file: str,
-) -> list[dict[str, int]]:
-
-    test_cases = []
-
-    for test in tests:
-        a = test["inputs"]["a"]
-        b = test["inputs"]["b"]
-        test_cases.append((a, b))
-
-    tb_code = generate_testbench(test_cases)
-
-    with open("generated_tb.v", "w") as f:
-        f.write(tb_code)
-
-    rtl_output = run_rtl_sim(
-        "generated_tb.v",
-        dut_file
-    )
-
-    parsed = []
-
-    for line in rtl_output.strip().splitlines():
-
-        if "$finish" in line:
-            continue
-
-        if "," not in line:
-            continue
-
-        try:
-            a, b, rtl_sum = map(int, line.split(","))
-
-            parsed.append({
-                "sum": rtl_sum
-            })
-
-        except ValueError:
-            continue
-        
-    return parsed
 
 # ---------------------------------------------------------------------------
 # Failure diagnosis
@@ -122,21 +75,10 @@ def run_verification(
     failed_tests: list[dict[str, Any]] = []
     passed = 0
 
-    dut_file = (
-        "samples/adder_4bit_buggy.v"
-        if buggy
-        else "samples/adder_4bit.v"
-    )
-
-    rtl_results = _run_rtl_tests(tests, dut_file)
-
-    for idx, test in enumerate(tests):
-
+    for test in tests:
         inputs: dict[str, int] = test["inputs"]
         expected: dict[str, Any] = test["expected"]
-
-        actual = rtl_results[idx]
-
+        actual = _run_dut(inputs, buggy=buggy)
         ok = actual == expected
 
         result: dict[str, Any] = {
