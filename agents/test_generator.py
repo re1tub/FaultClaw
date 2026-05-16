@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from openai import OpenAI
+
 
 class SpecValidationError(ValueError):
     """Raised when the incoming design spec is malformed."""
@@ -273,16 +275,148 @@ def generate_feedback_tests(spec: DesignSpec, feedback: dict[str, Any]) -> list[
     return dedupe_tests(tests)
 
 
-def load_model_candidates(_spec: DesignSpec, _breakdown: bool, _feedback: dict[str, Any] | None) -> list[dict[str, Any]]:
-    """Placeholder for future Nemotron integration.
+def _nemotron_env() -> dict[str, Any] | None:
+    api_key = os.getenv("NVIDIA_API_KEY") or os.getenv("NEMOTRON_API_KEY")
+    if not api_key:
+        return None
 
-    Keeping this seam here lets the rest of P1 stay stable while the team finalizes
-    credentials and endpoint details.
-    """
+    return {
+        "api_key": api_key,
+        "base_url": os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1"),
+        "model": os.getenv("NEMOTRON_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
+        "temperature": float(os.getenv("NEMOTRON_TEMPERATURE", "1")),
+        "top_p": float(os.getenv("NEMOTRON_TOP_P", "0.95")),
+        "max_tokens": int(os.getenv("NEMOTRON_MAX_TOKENS", "4096")),
+        "reasoning_budget": int(os.getenv("NEMOTRON_REASONING_BUDGET", "4096")),
+        "enable_thinking": os.getenv("NEMOTRON_ENABLE_THINKING", "true").lower() != "false",
+    }
 
-    if not os.getenv("NEMOTRON_API_KEY"):
+
+def _build_model_prompt(spec: DesignSpec, breakdown: bool, feedback: dict[str, Any] | None) -> str:
+    prompt = {
+        "task": (
+            "Generate additional high-value hardware verification tests for this design. "
+            "Return JSON only with a top-level 'tests' array. Each test must include "
+            "'inputs' and 'rationale'."
+        ),
+        "constraints": {
+            "max_tests": 6,
+            "categories": ["adversarial"],
+            "respect_declared_input_ranges": True,
+            "prefer_novel_cases": True,
+        },
+        "design_spec": {
+            "design_name": spec.design_name,
+            "description": spec.description,
+            "behavior_hint": spec.behavior_hint,
+            "inputs": [
+                {
+                    "name": signal.name,
+                    "bits": signal.bits,
+                    "signed": signal.signed,
+                    "min_value": signal.min_value,
+                    "max_value": signal.max_value,
+                }
+                for signal in spec.inputs
+            ],
+            "outputs": [
+                {
+                    "name": signal.name,
+                    "bits": signal.bits,
+                    "signed": signal.signed,
+                }
+                for signal in spec.outputs
+            ],
+        },
+        "mode": "breakdown" if breakdown else "normal",
+        "feedback": feedback or {},
+    }
+    return json.dumps(prompt, indent=2)
+
+
+def _extract_response_text(response: Any) -> str:
+    message = response.choices[0].message
+    content = getattr(message, "content", "")
+
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                parts.append(str(item.get("text", "")))
+            else:
+                text = getattr(item, "text", None)
+                if text:
+                    parts.append(str(text))
+        return "".join(parts)
+
+    return str(content or "")
+
+
+def _parse_model_candidates(raw_text: str, spec: DesignSpec) -> list[dict[str, Any]]:
+    try:
+        payload = json.loads(raw_text)
+    except json.JSONDecodeError:
         return []
-    return []
+
+    raw_tests = payload.get("tests")
+    if not isinstance(raw_tests, list):
+        return []
+
+    parsed: list[dict[str, Any]] = []
+    for index, candidate in enumerate(raw_tests, start=1):
+        if not isinstance(candidate, dict):
+            continue
+        inputs = candidate.get("inputs")
+        rationale = candidate.get("rationale", "model-suggested adversarial candidate")
+        if not isinstance(inputs, dict) or not isinstance(rationale, str):
+            continue
+        try:
+            spec.validate_input_values(inputs)
+            parsed.append(
+                build_test_case(
+                    spec,
+                    f"model_{index:03d}",
+                    "adversarial",
+                    inputs,
+                    rationale,
+                )
+            )
+        except SpecValidationError:
+            continue
+    return parsed
+
+
+def load_model_candidates(_spec: DesignSpec, _breakdown: bool, _feedback: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Optionally fetch extra adversarial candidates from a Nemotron-compatible API."""
+
+    config = _nemotron_env()
+    if config is None:
+        return []
+
+    client = OpenAI(
+        base_url=config["base_url"],
+        api_key=config["api_key"],
+    )
+    response = client.chat.completions.create(
+        model=config["model"],
+        messages=[
+            {
+                "role": "user",
+                "content": _build_model_prompt(_spec, _breakdown, _feedback),
+            }
+        ],
+        temperature=config["temperature"],
+        top_p=config["top_p"],
+        max_tokens=config["max_tokens"],
+        extra_body={
+            "chat_template_kwargs": {"enable_thinking": config["enable_thinking"]},
+            "reasoning_budget": config["reasoning_budget"],
+        },
+    )
+    return _parse_model_candidates(_extract_response_text(response), _spec)
 
 
 def generate_test_suite(spec: DesignSpec, breakdown: bool = False, feedback: dict[str, Any] | None = None) -> dict[str, Any]:

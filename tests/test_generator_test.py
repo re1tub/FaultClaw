@@ -1,6 +1,8 @@
+import json
 import unittest
+from unittest.mock import MagicMock, patch
 
-from agents.test_generator import DesignSpec, generate_test_suite
+from agents.test_generator import DesignSpec, generate_test_suite, load_model_candidates
 
 
 def load_spec() -> DesignSpec:
@@ -51,6 +53,43 @@ class GeneratorTests(unittest.TestCase):
         suite = generate_test_suite(load_spec())
         target = next(test for test in suite["tests"] if test["inputs"] == {"a": 15, "b": 1})
         self.assertEqual(target["expected"], {"sum": 16})
+
+    def test_model_candidates_disabled_without_api_key(self) -> None:
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(load_model_candidates(load_spec(), False, None), [])
+
+    @patch("agents.test_generator.OpenAI")
+    def test_model_candidates_parse_valid_json_response(self, mock_openai: MagicMock) -> None:
+        mock_client = mock_openai.return_value
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[
+                MagicMock(
+                    message=MagicMock(
+                        content=json.dumps(
+                            {
+                                "tests": [
+                                    {
+                                        "inputs": {"a": 15, "b": 0},
+                                        "rationale": "max input sanity check from model",
+                                    },
+                                    {
+                                        "inputs": {"a": 15, "b": 99},
+                                        "rationale": "invalid and should be ignored",
+                                    },
+                                ]
+                            }
+                        )
+                    )
+                )
+            ]
+        )
+
+        with patch.dict("os.environ", {"NVIDIA_API_KEY": "test-key"}, clear=True):
+            candidates = load_model_candidates(load_spec(), False, None)
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]["inputs"], {"a": 15, "b": 0})
+        self.assertEqual(candidates[0]["expected"], {"sum": 15})
 
 
 if __name__ == "__main__":
