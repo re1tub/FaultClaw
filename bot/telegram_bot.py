@@ -12,7 +12,11 @@ Requires TELEGRAM_BOT_TOKEN in .env (or the environment).
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
+
+# Ensure the project root is on sys.path regardless of where this script is invoked from.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotenv import load_dotenv
 from telegram import Update
