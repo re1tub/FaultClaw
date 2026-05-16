@@ -1,11 +1,9 @@
-"""Orchestration entrypoint for the FaultClaw P1 pipeline.
+"""Orchestration entrypoint for the FaultClaw pipeline.
 
-Stage 1 — Agent 1 (spec_reader): parse the hardware design spec file
-           (.v / .sv / .yaml / .json) into a normalised DesignSpec dict.
-Stage 2 — Agent 2 (test_generator): generate adversarial test cases from
-           the DesignSpec, with optional breakdown mode and Agent 3 feedback.
-Stage 3 — memory.store: append this run's results to memory/history.json
-           so failure patterns accumulate across runs.
+Stage 1 — Agent 1 (spec_reader):        parse hardware design spec → DesignSpec dict
+Stage 2 — Agent 2 (test_generator):     generate adversarial test suite
+Stage 3 — Agent 3 (verification_judge): run suite against DUT, produce pass/fail report
+Stage 4 — memory.store:                 persist results to memory/history.json
 """
 
 from __future__ import annotations
@@ -17,6 +15,7 @@ from pathlib import Path
 
 from agents.spec_reader import SpecParseError, parse_spec
 from agents.test_generator import DesignSpec, generate_test_suite
+from agents.verification_judge import run_verification
 from memory.store import save_run
 
 
@@ -40,7 +39,8 @@ def main() -> int:
     )
     parser.add_argument("--feedback", help="Optional Agent 3 failure-feedback JSON.")
     parser.add_argument("--breakdown", action="store_true", help="Enable Breakdown Mode.")
-    parser.add_argument("--output", help="Optional output file path for the generated suite.")
+    parser.add_argument("--buggy", action="store_true", help="Simulate the buggy adder DUT in Agent 3.")
+    parser.add_argument("--output", help="Optional output file path for the verification report.")
     args = parser.parse_args()
 
     # --- Agent 1: parse the raw design spec ---
@@ -58,14 +58,20 @@ def main() -> int:
     feedback = load_json(args.feedback) if args.feedback else None
     suite = generate_test_suite(spec, breakdown=args.breakdown, feedback=feedback)
 
-    # --- memory.store: persist this run (pass/fail counts filled by Agent 3 later) ---
+    # --- Agent 3: run suite against DUT, produce verification report ---
+    report = run_verification(suite, buggy=args.buggy)
+
+    # --- memory.store: persist real pass/fail counts from Agent 3 ---
     save_run(
-        design_name=suite["design_name"],
-        mode=suite["mode"],
-        total_tests=suite["test_count"],
+        design_name=report["design_name"],
+        mode=report["mode"],
+        total_tests=report["total_tests"],
+        tests_passed=report["tests_passed"],
+        tests_failed=report["tests_failed"],
+        failed_tests=report["failed_tests"],
     )
 
-    serialized = json.dumps(suite, indent=2)
+    serialized = json.dumps(report, indent=2)
     if args.output:
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)

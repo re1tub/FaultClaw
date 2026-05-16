@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 import os
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
+
 
 class SpecValidationError(ValueError):
     """Raised when the incoming design spec is malformed."""
@@ -441,34 +440,3 @@ def generate_test_suite(spec: DesignSpec, breakdown: bool = False, feedback: dic
     }
 
 
-def load_json_file(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate adversarial tests for FaultClaw Agent 2.")
-    parser.add_argument("--spec", required=True, help="Path to the Agent 1 design spec JSON file.")
-    parser.add_argument("--feedback", help="Optional path to failure feedback JSON from Agent 3.")
-    parser.add_argument("--breakdown", action="store_true", help="Enable exhaustive Breakdown Mode.")
-    parser.add_argument("--output", help="Optional path to write the generated test suite JSON.")
-    args = parser.parse_args()
-
-    spec_payload = load_json_file(Path(args.spec))
-    feedback_payload = load_json_file(Path(args.feedback)) if args.feedback else None
-    spec = DesignSpec.from_dict(spec_payload)
-    suite = generate_test_suite(spec, breakdown=args.breakdown, feedback=feedback_payload)
-    serialized = json.dumps(suite, indent=2)
-
-    if args.output:
-        output_path = Path(args.output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(serialized + "\n", encoding="utf-8")
-    else:
-        print(serialized)
-
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

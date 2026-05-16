@@ -1,4 +1,5 @@
 import json
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -58,9 +59,11 @@ class GeneratorTests(unittest.TestCase):
         with patch.dict("os.environ", {}, clear=True):
             self.assertEqual(load_model_candidates(load_spec(), False, None), [])
 
-    @patch("agents.test_generator.OpenAI")
-    def test_model_candidates_parse_valid_json_response(self, mock_openai: MagicMock) -> None:
-        mock_client = mock_openai.return_value
+    def test_model_candidates_parse_valid_json_response(self) -> None:
+        # Inject a mock openai module so this test runs without openai installed.
+        mock_openai_mod = MagicMock()
+        mock_client = MagicMock()
+        mock_openai_mod.OpenAI.return_value = mock_client
         mock_client.chat.completions.create.return_value = MagicMock(
             choices=[
                 MagicMock(
@@ -84,8 +87,9 @@ class GeneratorTests(unittest.TestCase):
             ]
         )
 
-        with patch.dict("os.environ", {"NVIDIA_API_KEY": "test-key"}, clear=True):
-            candidates = load_model_candidates(load_spec(), False, None)
+        with patch.dict(sys.modules, {"openai": mock_openai_mod}):
+            with patch.dict("os.environ", {"NVIDIA_API_KEY": "test-key"}, clear=True):
+                candidates = load_model_candidates(load_spec(), False, None)
 
         self.assertEqual(len(candidates), 1)
         self.assertEqual(candidates[0]["inputs"], {"a": 15, "b": 0})
