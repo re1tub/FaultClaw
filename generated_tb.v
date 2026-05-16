@@ -110,6 +110,11 @@ initial begin
     #1;
     $display("%d,%d,%d", a, b, sum);
 
+    a = 4'b1000;
+    b = 4'b1000;
+    #1;
+    $display("%d,%d,%d", a, b, sum);
+
     $finish;
 end
 

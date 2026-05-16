@@ -13,10 +13,14 @@ import json
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from agents.spec_reader import SpecParseError, parse_spec
 from agents.test_generator import DesignSpec, generate_test_suite
 from agents.verification_judge import run_verification
 from memory.store import save_run
+
+load_dotenv()
 
 
 def load_json(path: str) -> dict:
