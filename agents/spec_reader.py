@@ -61,6 +61,17 @@ def _coerce_spec(raw: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(raw_outputs, list) or not raw_outputs:
         raise SpecParseError("'outputs' must be a non-empty list.")
 
+    if len(raw_inputs) != 2:
+        raise SpecParseError(
+            f"Agent 2 currently supports exactly 2 inputs; got {len(raw_inputs)}. "
+            "(P1 constraint — extend compute_expected_outputs to lift this.)"
+        )
+    if len(raw_outputs) != 1:
+        raise SpecParseError(
+            f"Agent 2 currently supports exactly 1 output; got {len(raw_outputs)}. "
+            "(P1 constraint — extend compute_expected_outputs to lift this.)"
+        )
+
     return {
         "design_name": design_name,
         "description": description,
