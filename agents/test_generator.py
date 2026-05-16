@@ -9,9 +9,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from openai import OpenAI
-
-
 class SpecValidationError(ValueError):
     """Raised when the incoming design spec is malformed."""
 
@@ -396,6 +393,7 @@ def load_model_candidates(_spec: DesignSpec, _breakdown: bool, _feedback: dict[s
     if config is None:
         return []
 
+    from openai import OpenAI  # noqa: PLC0415 — lazy import, only needed when API key is set
     client = OpenAI(
         base_url=config["base_url"],
         api_key=config["api_key"],
