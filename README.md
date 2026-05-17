@@ -279,4 +279,3 @@ It is a working autonomous verification pipeline that produces real engineering 
 
 ---
 
-*Built at UCSC Baskin School of Engineering for the NVIDIA × Hack-a-Claw Hackathon 2026.*
