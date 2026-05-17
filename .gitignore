@@ -7,3 +7,5 @@ __pycache__/
 *.pyc
 out/
 memory/history.json
+frontend/node_modules/
+frontend/build/
