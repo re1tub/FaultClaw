@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 function ModeBadge({ mode, dut }) {
-  const label = dut === 'buggy_adder' ? 'buggy' : mode;
+  const label = dut === 'buggy_adder' ? 'buggy' : (mode || 'normal');
   return <span className={`mode-badge ${label}`}>{label}</span>;
 }
 
@@ -11,7 +11,6 @@ function CoverageBar({ pct }) {
     const t = setTimeout(() => setWidth(pct), 60);
     return () => clearTimeout(t);
   }, [pct]);
-
   return (
     <div className="coverage-bar-wrap">
       <div className="coverage-bar-fill" style={{ width: `${width}%` }} />
@@ -38,13 +37,23 @@ function FailItem({ test, index }) {
   );
 }
 
+function downloadReport(report) {
+  const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `faultclaw-${report.design_name || 'report'}-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export default function ResultsPanel({ report, error, loading }) {
   if (loading) {
     return (
       <div className="panel results-panel">
-        <div className="panel-header">
-          <span className="accent">▸</span> verification_report
-        </div>
+        <div className="panel-header"><span className="accent">▸</span> verification_report</div>
         <div className="results-loading">
           <div className="loading-spinner" />
           <div className="loading-text">running pipeline</div>
@@ -56,9 +65,7 @@ export default function ResultsPanel({ report, error, loading }) {
   if (error) {
     return (
       <div className="panel results-panel">
-        <div className="panel-header">
-          <span className="accent">▸</span> verification_report
-        </div>
+        <div className="panel-header"><span className="accent">▸</span> verification_report</div>
         <div className="results-error">
           <div className="results-error-label">// pipeline error</div>
           {error}
@@ -75,6 +82,11 @@ export default function ResultsPanel({ report, error, loading }) {
     <div className="panel results-panel">
       <div className="panel-header">
         <span className="accent">▸</span> verification_report
+        <div className="report-actions">
+          <button className="btn btn-ghost" style={{ fontSize: 10, padding: '4px 10px' }} onClick={() => downloadReport(report)}>
+            ↓ Download JSON
+          </button>
+        </div>
       </div>
 
       <div className="report-meta">
@@ -85,11 +97,11 @@ export default function ResultsPanel({ report, error, loading }) {
 
       <div className="metrics-row">
         <div className="metric-block">
-          <div className="metric-label">Tests Passed</div>
+          <div className="metric-label">Passed</div>
           <div className="metric-value pass">{tests_passed}</div>
         </div>
         <div className="metric-block">
-          <div className="metric-label">Tests Failed</div>
+          <div className="metric-label">Failed</div>
           <div className="metric-value fail">{tests_failed}</div>
         </div>
         <div className="metric-block">
@@ -103,9 +115,7 @@ export default function ResultsPanel({ report, error, loading }) {
         <div className="all-passed-banner">✓ ALL {total_tests} TESTS PASSED</div>
       ) : (
         <>
-          <div className="fail-list-header">
-            // failed_tests ({tests_failed})
-          </div>
+          <div className="fail-list-header">// failed_tests ({tests_failed})</div>
           <div className="fail-list">
             {failed_tests.map((t, i) => (
               <FailItem key={t.id} test={t} index={i} />
