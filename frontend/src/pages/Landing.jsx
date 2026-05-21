@@ -1,9 +1,5 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import NavBar from '../components/NavBar';
-
-const API_BASE = 'http://localhost:8000';
 
 const FEATURES = [
   {
@@ -30,27 +26,6 @@ const FEATURES = [
 ];
 
 export default function Landing() {
-  const [email, setEmail] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleGetKey = async (e) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setLoading(true);
-    setError('');
-    try {
-      const res = await axios.post(`${API_BASE}/auth/register`, { email: email.trim() });
-      setApiKey(res.data.api_key);
-      localStorage.setItem('fc_api_key', res.data.api_key);
-    } catch (err) {
-      setError(err.response?.data?.detail || err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div>
       <NavBar />
@@ -69,8 +44,8 @@ export default function Landing() {
               Upload a spec, get a full adversarial test report in seconds.
             </p>
             <div className="hero-actions">
-              <a href="#get-key" className="btn btn-primary-solid">Get API Key</a>
-              <Link to="/dashboard" className="btn btn-green">Open Dashboard →</Link>
+              <Link to="/dashboard" className="btn btn-primary-solid">Open Dashboard →</Link>
+              <Link to="/docs" className="btn btn-green">View API Docs</Link>
             </div>
           </div>
         </div>
@@ -115,46 +90,6 @@ export default function Landing() {
                 <div className="feature-detail">{f.detail}</div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Get Key */}
-      <section className="get-key-section" id="get-key">
-        <div className="container">
-          <div className="get-key-inner">
-            <h2 className="section-heading">
-              Get <span className="accent">API Access</span>
-            </h2>
-            <p className="section-body">
-              Enter your email to generate an API key. No password required.
-              Your key gives you access to the upload and verification endpoints.
-            </p>
-            <form className="key-form" onSubmit={handleGetKey}>
-              <input
-                type="email"
-                placeholder="engineer@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <button type="submit" className="btn btn-primary-solid" disabled={loading}>
-                {loading ? 'Generating...' : 'Generate Key'}
-              </button>
-            </form>
-            {error && <div className="key-form-error">{error}</div>}
-            {apiKey && (
-              <div className="key-display">
-                <div className="key-display-label">// your api key</div>
-                <div className="key-value">{apiKey}</div>
-                <div className="key-copy-hint">
-                  Copy this key. It won't be shown again.{' '}
-                  <Link to="/dashboard" style={{ color: 'var(--green)' }}>
-                    Open Dashboard →
-                  </Link>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </section>

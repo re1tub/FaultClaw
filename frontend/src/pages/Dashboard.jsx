@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import axios from 'axios';
 import NavBar from '../components/NavBar';
 import DropZone from '../components/DropZone';
@@ -45,68 +44,30 @@ const LOG_SEQUENCES = {
 };
 
 export default function Dashboard() {
-  const [apiKey, setApiKey]           = useState(() => localStorage.getItem('fc_api_key') || '');
-  const [keyInput, setKeyInput]       = useState('');
-  const [keyInfo, setKeyInfo]         = useState(null);
-  const [keyError, setKeyError]       = useState('');
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [uploading, setUploading]     = useState(false);
-  const [uploadError, setUploadError] = useState('');
-  const [running, setRunning]         = useState(false);
-  const [activeMode, setActiveMode]   = useState(null);
-  const [report, setReport]           = useState(null);
-  const [runError, setRunError]       = useState(null);
-  const [logLines, setLogLines]       = useState([]);
-  const [history, setHistory]         = useState([]);
+  const [uploading, setUploading]       = useState(false);
+  const [uploadError, setUploadError]   = useState('');
+  const [running, setRunning]           = useState(false);
+  const [activeMode, setActiveMode]     = useState(null);
+  const [report, setReport]             = useState(null);
+  const [runError, setRunError]         = useState(null);
+  const [logLines, setLogLines]         = useState([]);
+  const [history, setHistory]           = useState([]);
   const intervalRef = useRef(null);
 
-  const authHeaders = useCallback(() => ({ 'X-API-Key': apiKey }), [apiKey]);
-
-  const fetchUsage = useCallback(async (key) => {
-    try {
-      const res = await axios.get(`${API_BASE}/auth/usage`, { headers: { 'X-API-Key': key } });
-      setKeyInfo(res.data);
-      setKeyError('');
-    } catch {
-      setKeyInfo(null);
-      setKeyError('Invalid or expired API key.');
-    }
-  }, []);
-
   const fetchHistory = useCallback(async () => {
-    if (!apiKey) return;
     try {
-      const res = await axios.get(`${API_BASE}/results`, { headers: authHeaders() });
+      const res = await axios.get(`${API_BASE}/results`);
       setHistory(res.data);
     } catch {
       // history is non-critical
     }
-  }, [apiKey, authHeaders]);
+  }, []);
 
   useEffect(() => {
-    if (apiKey) {
-      fetchUsage(apiKey);
-      fetchHistory();
-    }
-  }, [apiKey, fetchUsage, fetchHistory]);
-
-  const connectKey = () => {
-    const k = keyInput.trim();
-    if (!k) return;
-    setApiKey(k);
-    localStorage.setItem('fc_api_key', k);
-    fetchUsage(k);
-  };
-
-  const disconnect = () => {
-    setApiKey('');
-    setKeyInput('');
-    setKeyInfo(null);
-    setUploadedFile(null);
-    setReport(null);
-    setHistory([]);
-    localStorage.removeItem('fc_api_key');
-  };
+    fetchHistory();
+    return () => clearInterval(intervalRef.current);
+  }, [fetchHistory]);
 
   const handleFileAccepted = async (file) => {
     setUploading(true);
@@ -115,7 +76,7 @@ export default function Dashboard() {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const res = await axios.post(`${API_BASE}/upload`, formData, { headers: authHeaders() });
+      const res = await axios.post(`${API_BASE}/upload`, formData);
       setUploadedFile(res.data);
     } catch (e) {
       setUploadError(e.response?.data?.detail || e.message);
@@ -125,7 +86,7 @@ export default function Dashboard() {
   };
 
   const handleRun = useCallback(async (mode) => {
-    if (!uploadedFile || !apiKey) return;
+    if (!uploadedFile) return;
     clearInterval(intervalRef.current);
 
     setRunning(true);
@@ -149,7 +110,6 @@ export default function Dashboard() {
       const res = await axios.post(
         `${API_BASE}/verify/${uploadedFile.file_id}`,
         { mode },
-        { headers: authHeaders() },
       );
       clearInterval(intervalRef.current);
       setLogLines(seq);
@@ -163,42 +123,7 @@ export default function Dashboard() {
     } finally {
       setRunning(false);
     }
-  }, [uploadedFile, apiKey, authHeaders, fetchHistory]);
-
-  // ── No key state ──────────────────────────────────────────────
-  if (!apiKey) {
-    return (
-      <div>
-        <NavBar />
-        <div className="dash-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="panel" style={{ maxWidth: 480, width: '100%', margin: '60px 24px' }}>
-            <div className="panel-header"><span className="accent">▸</span> connect</div>
-            <div className="api-key-prompt">
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', letterSpacing: 1 }}>
-                Enter your API key to access the dashboard.
-              </div>
-              <div className="api-key-field">
-                <input
-                  className="api-key-input"
-                  type="text"
-                  placeholder="Paste API key..."
-                  value={keyInput}
-                  onChange={(e) => setKeyInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && connectKey()}
-                />
-                <button className="btn btn-green" onClick={connectKey}>Connect</button>
-              </div>
-              {keyError && <div style={{ fontSize: 11, color: 'var(--red)' }}>{keyError}</div>}
-              <div className="api-key-hint">
-                No key?{' '}
-                <Link to="/#get-key" style={{ color: 'var(--green)' }}>Get one on the home page →</Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  }, [uploadedFile, fetchHistory]);
 
   const showResults = report || runError || running;
 
@@ -207,25 +132,9 @@ export default function Dashboard() {
       <NavBar />
       <div className="dash-page">
         <div className="dash-layout">
+
           {/* Left column */}
           <div className="dash-left">
-
-            {/* API Key */}
-            <div className="panel">
-              <div className="panel-header"><span className="accent">▸</span> authenticated</div>
-              <div className="api-key-connected">
-                {keyInfo && <div className="key-email">{keyInfo.email}</div>}
-                {keyInfo && (
-                  <div className="key-meta">
-                    <span className="key-runs">{keyInfo.run_count} runs used</span>
-                    {' · '}
-                    <span>since {new Date(keyInfo.created_at).toLocaleDateString()}</span>
-                  </div>
-                )}
-                <div className="key-masked">{apiKey.slice(0, 10)}...{apiKey.slice(-6)}</div>
-                <button className="key-disconnect" onClick={disconnect}>✕ disconnect</button>
-              </div>
-            </div>
 
             {/* File upload */}
             <div className="panel">
