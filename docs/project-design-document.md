@@ -22,9 +22,15 @@ FaultClaw attempts to address the issues that come with traditional verification
 
 ### 1.2 Project Objectives
 
-
+FaultClaw was developed as a hackathon project hosted by NVIDIA x UCSC. In this event participants were challenged to create autonomous applications using NemoClaw, an AI Agent developed and provided by NVIDIA. Our group focused on implementing this AI agent to develop a most autonomous digital hardware verification application. Our focus was more specifically to develop automation of register-transfer level (RTL) functional verification tasks. By incorporating NemoClaw into the verification workflow, FaultClaw aims to automate test generation, coordinate simulation execution, and evaluate hardware behavior to identify potential functional errors. The project explores how autonomous AI agents can assist hardware engineers by reducing manual intervention in selected verification processes.
 
 ### 1.3 Scope and Limitations
+
+The scope of FaultClaw is centered on exploring the application of autonomous AI agents to register-transfer level (RTL) functional verification. Developed using NVIDIA's NemoClaw, the framework is intended to automate selected verification tasks, including test generation, simulation execution, and functional result evaluation. The primary focus is identifying discrepancies between expected and observed hardware behavior while reducing the manual intervention required throughout the verification workflow. FaultClaw is not intended to replace established verification methodologies or provide a complete hardware design and implementation environment.
+
+Despite its intended capabilities, FaultClaw is subject to several limitations. As a simulation-based verification approach, the framework cannot guarantee exhaustive coverage of all possible input combinations and internal design states. Furthermore, the effectiveness of AI-assisted test generation depends on the quality, validity, and diversity of the generated test cases. Functional correctness evaluation also relies on the accuracy of the reference model used to determine expected behavior.
+
+Additionally, the framework's compatibility and effectiveness are constrained by the RTL designs, verification interfaces, and test scenarios supported by the current implementation. Developed within the time constraints of an NVIDIA hackathon, FaultClaw serves as an exploratory implementation rather than a production-ready verification solution. Further development and experimental validation would be necessary to establish its reliability, scalability, and applicability to more complex hardware designs.
 
 ## 2. System Architecture
 ### 2.1 High-Level Overview
