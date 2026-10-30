@@ -9,3 +9,15 @@ out/
 memory/history.json
 frontend/node_modules/
 frontend/build/
+# LaTeX temporary build files
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.synctex.gz
+
+# Vim backup and undo files
+*~
+*.un~
+*.swp
+*.swo
